@@ -2,8 +2,10 @@
 
 #Zmienne
 #_____________________________________________________________
+main_dir=/tmp/DSDISK/
 list_unformatted=/tmp/DSDISKS/disks_list_unformatted
 list=/tmp/DSDISKS/disks_list_formatted
+disks=0
 
 #Sprawdzenie czy zainstalowane są odpowiednie narzędzia
 #_____________________________________________________________
@@ -35,15 +37,23 @@ sed 's/\s.*$//' /tmp/DSDISKS/disks_list_unformatted >> $list
 
 #Testy smart
 #_____________________________________________________________
-xargs -I{} smartctl -t short /dev/"{}" < $list
+#xargs -I{} smartctl -t short /dev/"{}" < $list
 
 #Testy badblocks
 #_____________________________________________________________
-xargs -I{} badblocks -svn /dev/"{}" < $list > /etc/testy
+#xargs -I{} badblocks -svn /dev/"{}" < $list > /etc/testy
 
 #Weryfikacja czasu działania dysków
 #_____________________________________________________________
-xargs -I{} smartctl -a /dev/"{}" |grep Power_On_Hours < $list > /etc/timers
+disks=$(cat /tmp/DSDISKS/disks_list_formatted)
+mkdir /tmp/RESULTS
+
+for x in $disks
+do
+    value=$(smartctl -a /dev/${x} |grep Power_On_Hours)
+    value2=$(echo $value |sed 's|.*-||')
+    echo $value2 |sed 's/ //g' >> /tmp/RESULTS/${x}.txt
+done
 
 #Zebranie informacji z testu S.M.A.R.T
 
@@ -58,3 +68,4 @@ xargs -I{} smartctl -a /dev/"{}" |grep Power_On_Hours < $list > /etc/timers
 #Usunięcie katalogu tymczasowego
 #_____________________________________________________________
 rm -rf /tmp/DSDISKS/
+rm -rf /tmp/RESULTS/
