@@ -52,7 +52,12 @@ for x in $disks
 do
     value=$(smartctl -a /dev/${x} |grep Power_On_Hours)
     value2=$(echo $value |sed 's|.*-||')
-    echo $value2 |sed 's/ //g' >> /tmp/RESULTS/${x}.txt
+    value3=$(echo $value2 |sed 's/ //g')
+    while [[ $value3 -gt 30000 ]]
+    do
+        echo ${x} >> /tmp/over30k.txt
+        break
+    done
 done
 
 #Zebranie informacji z testu S.M.A.R.T
@@ -69,3 +74,4 @@ done
 #_____________________________________________________________
 rm -rf /tmp/DSDISKS/
 rm -rf /tmp/RESULTS/
+rm -rf /tmp/over30k.txt
