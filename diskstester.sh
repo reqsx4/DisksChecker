@@ -64,7 +64,21 @@ do
     done
 done
 
-#Zebranie informacji z testu S.M.A.R.T
+#Zebranie informacji z testu S.M.A.R.T (tylko uszkodzonych!)
+
+for x in $disks
+do
+    sn=$(smartctl -a /dev/${x} |grep 'Serial Number')
+    sn2=$(echo $sn |sed -r 's/^Serial Number://')
+    sn3=$(echo $sn2 |sed 's/ //g')
+    smartctl -a /dev/${x} |grep "Completed without error"
+    while [ $? != 0 ]
+    do
+        echo $sn3 >> /tmp/smarterrors.txt
+        smartctl -a /dev/${x} >> /tmp/$sn3.txt
+        break
+    done
+done
 
 # Czyszczenie dysków
 
