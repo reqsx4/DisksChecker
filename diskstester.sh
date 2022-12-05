@@ -45,17 +45,21 @@ sed 's/\s.*$//' /tmp/DSDISKS/disks_list_unformatted >> $list
 
 #Weryfikacja czasu działania dysków
 #_____________________________________________________________
-disks=$(cat /tmp/DSDISKS/disks_list_formatted)
-mkdir /tmp/RESULTS
+disks=$(cat /tmp/DSDISKS2/disks_list_formatted)
+mkdir /tmp/RESULTS2
+touch /tmp/over30k.txt
 
 for x in $disks
 do
     value=$(smartctl -a /dev/${x} |grep Power_On_Hours)
+    sn=$(smartctl -a /dev/${x} |grep 'Serial Number')
+    sn2=$(echo $sn |sed -r 's/^Serial Number://')
+    sn3=$(echo $sn2 |sed 's/ //g')
     value2=$(echo $value |sed 's|.*-||')
     value3=$(echo $value2 |sed 's/ //g')
     while [[ $value3 -gt 30000 ]]
     do
-        echo ${x} >> /tmp/over30k.txt
+        echo $sn3 >> /tmp/over30k.txt
         break
     done
 done
