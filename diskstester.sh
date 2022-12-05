@@ -82,6 +82,16 @@ done
 
 # Czyszczenie dysków
 
+for x in $disk
+do
+type=$(smartctl -a /dev/${x} |grep 'Rotation Rate:    Solid State Device')
+    if [ $? == 0 ]; then
+        dd if=/dev/zero of=/dev/${x}
+    else
+        dd if=/dev/urandom of=/dev/${x} && dd if=/dev/zero of=/dev/${x}
+done
+
+
 # Pakowanie wyników testów w .zip
 
 #Klasyfikacja dysków i zestawienie
