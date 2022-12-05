@@ -41,7 +41,7 @@ sed 's/\s.*$//' /tmp/DSDISKS/disks_list_unformatted >> $list
 
 #Testy badblocks
 #_____________________________________________________________
-#xargs -I{} badblocks -svn /dev/"{}" < $list > /etc/testy
+#xargs -I{} badblocks -wsv /dev/"{}" < $list > /etc/testy
 
 #Weryfikacja czasu działania dysków
 #_____________________________________________________________
