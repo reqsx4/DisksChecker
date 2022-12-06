@@ -70,12 +70,26 @@ do
     smartctl -t long /dev/${x}
 done
 
+#Test BadBlocks
+#_____________________________________________________________
+for x in $disks
+do
+    GREP_SN
+    nohup badblocks -wsv -o /tmp/diskdoctor/$sn3 /dev/${x} &
+done
+
+while pgrep badblocks
+do
+    echo ...
+    sleep 1
+done
+
 #Zapis wyników S.M.A.R.T.
 #_____________________________________________________________
 for x in $disks
 do
     GREP_SN
-    smartctl -a /dev/${x} >> $smart_dir/"$sn3".txt
+    smartctl -a /dev/${x} >> $smart_dir/"$sn3".txt &
 done
 
 #Weryfikacja czasu działania dysków
@@ -120,7 +134,6 @@ do
     echo "Liczba niepoprawnych wyłączeń wynosi:" $unsafeshutdown >> $results
 
 done
-
 #Czyszczenie
 #_____________________________________________________________
 rm -rf /tmp/diskdoctor/
