@@ -1,105 +1,125 @@
 #!/bin/bash
+#Author: Damian Golał | Data Space
 
-#Zmienne
+#Przygotowanie katalogu i początkowych zmiennych
 #_____________________________________________________________
-main_dir=/tmp/DSDISK/
-list_unformatted=/tmp/DSDISKS/disks_list_unformatted
-list=/tmp/DSDISKS/disks_list_formatted
-disks=0
+mkdir /tmp/diskdoctor/
+mkdir /tmp/diskdoctor/tmp/
+mkdir /tmp/diskdoctor/smart/
+touch /tmp/diskdoctor/results
+main_dir=/tmp/diskdoctor
+trash=/tmp/diskdoctor/tmp
+smart_dir=/tmp/diskdoctor/smart
+results=/tmp/diskdoctor/results
 
-#Sprawdzenie czy zainstalowane są odpowiednie narzędzia
+#Lista dysków
 #_____________________________________________________________
-systemctl --no-pager status smartmontools
-if [ $? != 0 ]; then
+lsblk | grep disk >> $trash/known_disks
+sed 's/\s.*$//' $trash/known_disks >> $main_dir/known_disks
+sed -i '$ d' $main_dir/known_disks
+disks=$(cat $main_dir/known_disks)
+num=$(wc -l $main_dir/known_disks)
+number=$(echo $num | sed 's/[^0-9]*//g' )
+echo "Liczba sprawdzonych dysków:" $number >> $results
+echo     "__________________________________________________" >> $results
 
-apt update && apt install --assume-yes smartmontools
-systemctl start smartmontools
-
-fi
-
-dpkg -l e2fsprogs
-if [ $? != 0 ]; then
-
-apt install --assume-yes e2fsprogs
-systemctl start e2fsprogs
-
-fi
-
-#Przygotowanie katalogu dla tymczasowych plików
+#FUNKCJE
 #_____________________________________________________________
-mkdir /tmp/DSDISKS/
 
-#Przygotowanie listy dysków
-#_____________________________________________________________
-lsblk | grep disk >> $list_unformatted
+#Pobranie numeru seryjnego aktualnie używanego dysku
+function GREP_SN {
 
-sed 's/\s.*$//' /tmp/DSDISKS/disks_list_unformatted >> $list
-
-#Testy smart
-#_____________________________________________________________
-#xargs -I{} smartctl -t short /dev/"{}" < $list
-
-#Testy badblocks
-#_____________________________________________________________
-#xargs -I{} badblocks -wsv /dev/"{}" < $list > /etc/testy
-
-#Weryfikacja czasu działania dysków
-#_____________________________________________________________
-disks=$(cat /tmp/DSDISKS2/disks_list_formatted)
-mkdir /tmp/RESULTS2
-touch /tmp/over30k.txt
-
-for x in $disks
-do
-    value=$(smartctl -a /dev/${x} |grep Power_On_Hours)
     sn=$(smartctl -a /dev/${x} |grep 'Serial Number')
     sn2=$(echo $sn |sed -r 's/^Serial Number://')
     sn3=$(echo $sn2 |sed 's/ //g')
+
+}
+
+function GREP_LIFETIME {
+
+    lt=$(smartctl -a /dev/${x} |grep 'Power_On_Hours')
+    lifetime=$(echo $lt |sed 's/.* //')
+
+}
+
+function GREP_CYCLE {
+
+    pc=$(smartctl -a /dev/${x} |grep 'Power_Cycle_Count')
+    powercycle=$(echo $pc |sed 's/.* //')
+
+}
+
+function GREP_UNSAFE_SH {
+
+    us=$(smartctl -a /dev/${x} |grep 'Unsafe_Shutdown_Count')
+    unsafeshutdown=$(echo $us |sed 's/.* //')
+
+}
+
+function GREP_REALLOCATED {
+
+    rs=$(smartctl -a /dev/${x} |grep 'Reallocated_Sector_Ct')
+    reallocated=$(echo $rs |sed 's/.* //')
+
+}
+
+#Przeprowadzenie testów S.M.A.R.T.
+#_____________________________________________________________
+for x in $disks
+do
+    smartctl -t long /dev/${x}
+done
+
+#Zapis wyników S.M.A.R.T.
+#_____________________________________________________________
+for x in $disks
+do
+    GREP_SN
+    smartctl -a /dev/${x} >> $smart_dir/"$sn3".txt
+done
+
+#Weryfikacja czasu działania dysków
+#_____________________________________________________________
+for x in $disks
+do
+    value=$(smartctl -a /dev/${x} |grep Power_On_Hours)
+    GREP_SN
     value2=$(echo $value |sed 's|.*-||')
     value3=$(echo $value2 |sed 's/ //g')
     while [[ $value3 -gt 30000 ]]
     do
-        echo $sn3 >> /tmp/over30k.txt
+        echo $sn3 >> $main_dir/over30kh
         break
     done
 done
 
-#Zebranie informacji z testu S.M.A.R.T (tylko uszkodzonych!)
+echo "Dyski z czasem pracy powyżej 30.000 godzin:" >> $results
+cat $main_dir/over30kh >> $results
+echo     "__________________________________________________" >> $results
 
+#Interpretacja wyników S.M.A.R.T.
+#_____________________________________________________________
+echo "Skrócone wyniki S.M.A.R.T." >> $results
 for x in $disks
 do
-    sn=$(smartctl -a /dev/${x} |grep 'Serial Number')
-    sn2=$(echo $sn |sed -r 's/^Serial Number://')
-    sn3=$(echo $sn2 |sed 's/ //g')
-    smartctl -a /dev/${x} |grep "Completed without error"
-    while [ $? != 0 ]
-    do
-        echo $sn3 >> /tmp/smarterrors.txt
-        smartctl -a /dev/${x} >> /tmp/$sn3.txt
-        break
-    done
+    echo "--------------------------------------------------" >> $results
+
+    GREP_SN
+    echo "Statystyki dla dysku" $sn3 >> $results
+
+    GREP_LIFETIME
+    echo "Łączny czas pracy dysku wynosi:" $lifetime >> $results
+
+    GREP_REALLOCATED
+    echo "Ilość przeniesionych sektorów:" $reallocated >> $results
+
+    GREP_CYCLE
+    echo "Ilość cykli wynosi:" $powercycle >> $results
+
+    GREP_UNSAFE_SH
+    echo "Liczba niepoprawnych wyłączeń wynosi:" $unsafeshutdown >> $results
+
 done
 
-# Czyszczenie dysków
-
-for x in $disk
-do
-type=$(smartctl -a /dev/${x} |grep 'Rotation Rate:    Solid State Device')
-    if [ $? == 0 ]; then
-        dd if=/dev/zero of=/dev/${x}
-    else
-        dd if=/dev/urandom of=/dev/${x} && dd if=/dev/zero of=/dev/${x}
-done
-
-
-# Pakowanie wyników testów w .zip
-
-#Klasyfikacja dysków i zestawienie
-
-#Wysyłka maila do @TECH
-
-#Usunięcie katalogu tymczasowego
-#_____________________________________________________________
-rm -rf /tmp/DSDISKS/
-rm -rf /tmp/RESULTS/
-rm -rf /tmp/over30k.txt
+#Czyszczenie
+rm -rf /tmp/diskdoctor/
