@@ -78,10 +78,13 @@ do
     nohup badblocks -wsv -o /tmp/diskdoctor/$sn3 /dev/${x} &
 done
 
-while pgrep badblocks
+pgrep badblocks
+
+while [ $? == 0 ]
 do
-    echo ...
+    echo "Test nadal trwa"
     sleep 1
+    pgrep badblocks
 done
 
 #Zapis wyników S.M.A.R.T.
@@ -134,6 +137,27 @@ do
     echo "Liczba niepoprawnych wyłączeń wynosi:" $unsafeshutdown >> $results
 
 done
+
+#Interpretacja wyników BadBlocks
+#_____________________________________________________________
+echo     "__________________________________________________" >> $results
+echo "Wyniki testu BadBlocks:" >> $results
+for x in $disks
+do
+    GREP_SN
+    if [ -f $main_dir/"$sn3" ]
+    then
+        if [ -s $main_dir/"$sn3" ]
+        then
+            echo "Dysk" $sn3 "posiada uszkodzone sektory" >> $results
+        else
+            echo "Dysk" $sn3 "jest sprawny" >> $results
+        fi
+    else
+        echo "Nie udało się odczytać dysku" $sn3 >> $results
+    fi
+done
+
 #Czyszczenie
 #_____________________________________________________________
 rm -rf /tmp/diskdoctor/
