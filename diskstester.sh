@@ -11,6 +11,7 @@ main_dir=/tmp/diskdoctor
 trash=/tmp/diskdoctor/tmp
 smart_dir=/tmp/diskdoctor/smart
 results=/tmp/diskdoctor/results
+start=$(time)
 
 #Lista dysków
 #_____________________________________________________________
@@ -20,6 +21,8 @@ sed -i '$ d' $main_dir/known_disks
 disks=$(cat $main_dir/known_disks)
 num=$(wc -l $main_dir/known_disks)
 number=$(echo $num | sed 's/[^0-9]*//g' )
+echo "Data rozpoczęcia testu:" $time >> $results
+echo "Data zakończenia testu: in_progress" >> $results
 echo "Liczba sprawdzonych dysków:" $number >> $results
 echo     "__________________________________________________" >> $results
 
@@ -157,6 +160,9 @@ do
         echo "Nie udało się odczytać dysku" $sn3 >> $results
     fi
 done
+
+stop=$(date)
+sed -i -r "s/in_progress/$stop/g" $results
 
 #Czyszczenie
 #_____________________________________________________________
